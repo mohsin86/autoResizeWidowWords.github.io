@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>
+		Detecting Rendered Line Breaks In A Text Node In JavaScript
+	</title>
+	
+</head>
+<style>
+    .rows{
+        width: 100%;
+    float: left;
+    }
+    .block{
+        width: 50%;float: left;
+    }
+
+    #headline, #headline, #before{
+        font-size: 17px;
+        width: 328px;
+        height: 100px;
+    }
+    .text-container2,.text-container2-before{
+        font-size: 17px;
+        width: 100px;
+    }
+    .green{
+        color: green;
+        font-weight: bold;
+    }
+</style>
+<body>
+
+	<h1>
+		Objective: The font should autosize to fit the widow on the line above if string has widow words.
+	</h1>
+    <h2>Reduce font size to fit the string in the container if string has widow words. <br> Example: </h2>
+
+	<div class="rows">
+        <div class="block">
+            <h3>Before Auto Resize</h3>
+            <p id="before">
+                This is a sample paragraph to demonstrate how to reduce font size if the sentence has widow words on the rendered new line. This should ideally be split into multiple lines for this <span class="green"> example.</span>
+            </p>
+        </div>
+        <div class="block">
+            <h3>After Auto Resize</h3>
+            <p id="headline">
+                This is a sample paragraph to demonstrate how to reduce font size if the sentence has widow words on the rendered new line. This should ideally be split into multiple lines for this example.
+            </p>
+        </div>
+    </div>
+    <div class="rows">
+        <div class="block">
+            <h3>Before Auto Resize</h3>
+            <p class="text-container2-before">
+                This is a <span class="green"> another</span> <span class="green"> sample</span> paragraph to <span class="green"> demonstrate</span> how to reduce font size if the sentence has widow words on the rendered new <span class="green"> line</span>.
+            </p>
+        </div>
+        <div class="block">
+            <h3>After Auto Resize</h3>
+            <p class="text-container2">
+                This is a <span class="green"> another</span> <span class="green"> sample</span> paragraph to <span class="green"> demonstrate</span> how to reduce font size if the sentence has widow words on the rendered new <span class="green"> line</span>.
+            </p>
+        </div>
+    </div>
+    
+
+	<script type="text/javascript">
+        // Use if only texNode, no child element
+        fitWidowWordsTextNode("#headline");
+        
+        // Use if multiple child element exists
+        fitWidowWords(".text-container2");
+        
+
+        function fitWidowWordsTextNode(el){
+                let source = document.querySelector( el ).firstChild;
+                var elm = document.querySelector( el);
+                var fontSize = parseFloat(window.getComputedStyle(elm).fontSize);
+               
+
+                // --------------------------------------------------------------------------- //
+                // --------------------------------------------------------------------------- //
+
+                /**
+                * I extract the visually rendered lines of text from the given textNode as it
+                * exists in the document at this very moment. Meaning, it returns the lines of
+                * text as seen by the user.
+                */
+                function extractLinesFromTextNode( textNode ) {
+
+                    if ( textNode.nodeType !== 3 ) {
+
+                        throw( new Error( "Lines can only be extracted from text nodes." ) );
+
+                    }
+
+                    // BECAUSE SAFARI: None of the "modern" browsers seem to care about the actual
+                    // layout of the underlying markup. However, Safari seems to create range
+                    // rectangles based on the physical structure of the markup (even when it
+                    // makes no difference in the rendering of the text). As such, let's rewrite
+                    // the text content of the node to REMOVE SUPERFLUOS WHITE-SPACE. This will
+                    // allow Safari's .getClientRects() to work like the other modern browsers.
+                    textNode.textContent = collapseWhiteSpace( textNode.textContent );
+
+                    // A Range represents a fragment of the document which contains nodes and
+                    // parts of text nodes. One thing that's really cool about a Range is that we
+                    // can access the bounding boxes that contain the contents of the Range. By
+                    // incrementally adding characters - from our text node - into the range, and
+                    // then looking at the Range's client rectangles, we can determine which
+                    // characters belong in which rendered line.
+                    let textContent = textNode.textContent;
+                    let range = document.createRange();
+                    let lines = [];
+                    let lineCharacters = [];
+
+                    // Iterate over every character in the text node.
+                    for ( let i = 0 ; i < textContent.length ; i++ ) {
+
+                        // Set the range to span from the beginning of the text node up to and
+                        // including the current character (offset).
+                        range.setStart( textNode, 0 );
+                        range.setEnd( textNode, ( i + 1 ) );
+
+                        // At this point, the Range's client rectangles will include a rectangle
+                        // for each visually-rendered line of text. Which means, the last
+                        // character in our Range (the current character in our for-loop) will be
+                        // the last character in the last line of text (in our Range). As such, we
+                        // can use the current rectangle count to determine the line of text.
+                        let lineIndex = ( range.getClientRects().length - 1 );
+
+                        // If this is the first character in this line, create a new buffer for
+                        // this line.
+                        if ( ! lines[ lineIndex ] ) {
+
+                            lines.push( lineCharacters = [] );
+
+                        }
+
+                        // Add this character to the currently pending line of text.
+                        lineCharacters.push( textContent.charAt( i ) );
+
+                    }
+
+                    // At this point, we have an array (lines) of arrays (characters). Let's
+                    // collapse the character buffers down into a single text value.
+                    lines = lines.map(
+                        function operator( characters ) {
+
+                            return( collapseWhiteSpace( characters.join( "" ) ) );
+
+                        }
+                    );
+
+                    return( lines );
+
+                }
+
+                
+                function collapseWhiteSpace( value ) {
+
+                    return( value.trim().replace( /\s+/g, " " ) );
+
+                }
+            
+               
+                function hasWidowWords( ) {
+                  let lines =  extractLinesFromTextNode( source );
+                    return lines.some(line => {
+                        console.log(line);
+                        let words = line.split(' ');
+                        
+                        return words.length == 1;
+                    })
+                       
+                    //let lastLineWords = lines[lines.length - 1].split(' ');
+                    //if(lastLineWords.length>1) return false;  return true;
+                }
+              
+                let counter = 1;
+                while (hasWidowWords()==true ) {
+                    fontSize -= 0.5;
+                    elm.style.fontSize = `${fontSize}px`;
+                    
+                    // set Max looping
+                    if(counter++ && counter>=40) break;
+                }
+             
+            }
+		
+            function fitWidowWords(el){
+            var node = document.querySelector( el);
+            var fontSize = parseFloat(window.getComputedStyle(node).fontSize);
+
+            function getRenderedLines(el) {
+                    const element = document.querySelector(el);
+                    if (!element) {
+                        console.error(`Element '${node}' not found.`);
+                        return [];
+                    }
+
+                    const style = window.getComputedStyle(element);
+                    const fontSize = style.fontSize;
+                    const fontFamily = style.fontFamily;
+                    const width = element.clientWidth;
+
+                    const words = element.innerText.split(' ');
+                    const lines = [];
+                    let currentLine = '';
+
+                    // Create a temporary span to measure text width
+                    const tempSpan = document.createElement('span');
+                    tempSpan.style.position = 'absolute';
+                    tempSpan.style.visibility = 'hidden';
+                    tempSpan.style.whiteSpace = 'nowrap';
+                    tempSpan.style.fontSize = fontSize;
+                    tempSpan.style.fontFamily = fontFamily;
+                    document.body.appendChild(tempSpan);
+
+                    for (const word of words) {
+                        const testLine = currentLine ? currentLine + ' ' + word : word;
+                        tempSpan.innerText = testLine;
+                        if (tempSpan.clientWidth > width) {
+                            lines.push(currentLine);
+                            currentLine = word;
+                        } else {
+                            currentLine = testLine;
+                        }
+                    }
+
+                    if (currentLine) {
+                        lines.push(currentLine);
+                    }
+
+                    // Clean up
+                    document.body.removeChild(tempSpan);
+
+                    return lines;
+            }
+
+            function hasWidowWords() {
+                let lines = getRenderedLines(el);
+                console.log(lines);
+                return lines.some(line => {
+                    let words = line.split(' ');
+                    return words.length == 1;
+                })
+                            
+                //let lastLineWords = lines[lines.length - 1].split(' ');
+                //if(lastLineWords.length>1) return false;  return true;
+            }
+                    
+                    
+                
+            let counter = 1;
+            while (hasWidowWords()==true ) {
+                fontSize -= 0.5;
+                node.style.fontSize = `${fontSize}px`;
+                
+                // set Max looping
+                if(counter++ && counter>=100) break;
+            }
+
+        }
+	</script>
+
+</body>
+</html>
